@@ -1,0 +1,502 @@
+---
+title: "CBxResponsbility_Preprocessing"
+author: "Carson Koffler"
+format: html
+editor: visual
+---
+
+## Study Background 
+
+### Quick Abstract
+
+### Design
+
+### Power Analysis
+
+I will be relying on the effect size past experimenters received from using Cyberball to manipulate envy. We will likely have a bigger sample than what this requires.
+
+> "Participants in the high-envy condition (M = 3.22, SD = 1.7) endorsed more state envy towards Standard Player 2 than did participants in the low-envy condition (M = 2.1, SD = 1.42; β = 0.33, b = 1.10, SE = 0.15, p \< .001)."
+
+```{r}
+library(pwr)
+## calculate cohen's d 
+m1 = 3.22
+s1 = 1.7
+m2 = 2.1
+s2 = 1.42
+s_pooled = sqrt(((s1^2)+(s2^2))/2)
+d = (m1-m2)/s_pooled
+
+#power analysis to find required sample size
+cat("Cohen's d is", d)
+print(pwr.t.test(n = NULL, d=d, sig.level = 0.05, power = .8, 
+           type = "two.sample", alternative = "two.sided"))
+
+
+
+print(pwr.t.test(n = NULL, d=.62, sig.level = 0.05, power = .8, 
+           type = "two.sample", alternative = "two.sided"))
+
+
+cat("Assuming Tang et al., Total sample size = ", 32*4)
+cat("\nAssuming Poon et al., Total sample size = ", 41.81934*4)
+
+
+x <- (pwr.t.test(n = NULL, d=.3, sig.level = 0.05, power = .9, 
+           type = "two.sample", alternative = "two.sided"))
+
+cat("\n\nAssuming d = .3 and power = .90, we need a sample of", x$n *4)
+
+y <- (pwr.t.test(n = NULL, d=.3, sig.level = 0.05, power = .95, 
+           type = "two.sample", alternative = "two.sided"))
+cat("\nAssuming d = .3 and power = .95, we need a sample of", y$n *4)
+
+z <- (pwr.t.test(n = NULL, d=.3, sig.level = 0.05, power = .80, 
+           type = "two.sample", alternative = "two.sided"))
+cat("\nAssuming d = .3 and power = .80, we need a sample of", z$n *4)
+
+
+
+
+
+
+
+```
+
+```{r}
+z <- pwr.anova.test(
+  k = 4,
+  f = 0.1,
+  sig.level = 0.05,
+  power = 0.80
+)
+
+z
+
+(z$n)*4 
+
+
+x <- pwr.anova.test(
+  k = 4,
+  f = 0.1,
+  sig.level = 0.05,
+  power = 0.90
+)
+
+print(x)
+
+(x$n)*4 
+
+y <- pwr.anova.test(
+  k = 4,
+  f = 0.1,
+  sig.level = 0.05,
+  power = 0.95
+)
+
+y 
+
+(y$n)*4
+```
+
+### Hypotheses
+
+**Hypothesis 1**: Dispositional envy will be positively associated with episodic envy.
+
+**Hypothesis 1**: People feel envy when they experience disadvantageous inequity relative to another person–regardless of whether the advantaged person was responsible for the inequity. 
+
+-   People who receive the ball less will be more envious of those who received the ball more.
+
+**Hypothesis 2**: People experience anger when they experience disadvantageous inequity, but only in instances when the advantaged person was responsible for the inequity. 
+
+-   People who received less will be more angry with those who received the ball more, only if they are told that they have the ability to ... (C3).
+
+**Hypothesis 3**: People burn others’ goods in response to disadvantageous inequity (due to envy).
+
+-   Higher episodic and dispositional envy will predict greater willingness to incur monetary costs in order to reduce relative disadvantage.
+
+-   H1: Burning is positively associated with episodic and dispositional envy
+
+<!-- -->
+
+-   H2: Burning increases as gap increases, moderated by envy scales
+
+**Hypothesis 4**. People burn others’ goods (due to anger) only when the advantaged person is to blame.
+
+-   Higher episodic anger will predict greater willingness to incur monetary costs in order to reduce relative disadvantage.
+
+-   Burning beyond parity, if it occurs, will be predicted by anger but not by episodic envy.
+
+## Results
+
+### Data Preparation
+
+This is the processing pipe line for the internal pilot data.
+
+There are a few things I want to make sure of before making it external:
+
+1.  
+
+```{r opening_file}
+#| echo: false
+
+#### Load Relevant Libraries and Functions
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(readr)
+library(kableExtra)
+library(ggplot2)
+
+#### Import data
+# Set working directory
+path <- "/Users/carsonkoffler/Documents/Envy/Cyberball/Data"
+setwd(path)
+
+files <- list.files(path = path, pattern = "\\.csv$", full.names = T) #list all files folder
+
+length(files) #number of files --> should match n 
+
+head(files) #View
+
+#read and combine participant data into one file 
+all_data <- files %>%
+  map_dfr(function(file_path){
+    read_csv(
+      file_path,
+      col_types = cols(
+        #prolific_id_last4 = col_character(),  # force character type
+        #participant_name = col_character(),   # force character type
+        .default = col_guess()                # let all other columns be guessed
+      )
+    )
+  })
+
+all_data <- as_tibble(all_data)
+
+
+#summarize participant data 
+participants <- all_data %>%
+  group_by(subject_id) %>%
+  summarise(success = first(success), #complete = T/F
+            experiment_data = first(experiment_date), #date study done
+            exp_condition = first(condition), #condition: 1,2,3,4
+            total_time = max(time_elapsed, na.rm = T), # total time to complete study
+            sp1_points = first(sp1Points), 
+            sp2_points = first(sp2Points),
+            sp1_dollars = first(sp1Dollars),
+            sp2_dollars = first(sp2Dollars), 
+            burn = first(sacrifice_amount))
+            # prolific_id = first(prolific_id_last4),  #Last 4 of prolific id
+            # total_time = max(time_elapsed, na.rm = T),  #total time to complete study
+            # version = first(version)) #study version 
+
+            ## need to figure out the From: and To: variables --> this can let me track if in
+            ## condition 4 if SP1 passes to SP2 
+            df_throws_list <- 
+              all_data %>%
+              filter(!is.na(from) & !is.na(to)) %>%
+              group_by(subject_id) %>%
+              summarise(
+                throws = list(tibble(
+                  cb_throws = trial_index,
+                  from  = from,
+                  to    = to
+                )),
+                .groups = "drop"
+              ) 
+            
+            df_throws_list %>%
+              unnest(throws)
+
+# Identify survey rows want to keep
+survey_data <- all_data %>%
+  dplyr::filter(str_detect(trial_type, "survey")) %>%
+  dplyr::select(subject_id, trial_type, response)
+
+# Convert JSON strings to lists and expand (1 column per Q)
+survey_expanded <- survey_data %>%
+  mutate(response_list = map(response, ~ {
+    # Convert string JSON to R list
+    if (!is.na(.x) && .x != "") {
+      as.list(fromJSON(.x))
+    } else {
+      NA
+    }
+  })) %>%
+  dplyr::select(-response) %>%
+  unnest_wider(response_list)
+
+
+# # fix data that was not named (Q0 contains psuedonym)
+# columns_fixed <- survey_expanded %>%
+#   group_by(subject_id) %>%
+#   summarise(
+#     pseudonym = Q0[!map_lgl(Q0, is.null)][1],
+#   )
+# 
+# #join columns_fixed to survey_expanded
+# survey_expanded <- survey_expanded %>%
+#   left_join(columns_fixed, by = "subject_id")
+# 
+# #add attention check 1 that was filtered out earlier
+# attention_check_1 <- all_data %>%
+#   filter(str_detect(stimulus, "Who won the last round you played\\?")) %>%
+#   dplyr::select(subject_id, attention_check_1=response)
+# 
+# #add attention check 1 to the df 
+# survey_expanded <- survey_expanded %>%
+#   left_join(attention_check_1, by = "subject_id")
+# 
+# #rename attention check 2 to fit format 
+# survey_expanded <- survey_expanded %>% 
+#   rename(attention_check_2 = DV5_attention_check, 
+#          psuedonum = Q0)
+# 
+# 
+# # Join expanded survey data back to main dataframe
+# # If multiple survey rows per subject, we can summarize by taking the first non-NA per column
+df <- survey_expanded %>%
+  group_by(subject_id) %>%
+  summarise(across(everything(), ~ first(na.omit(.x)), .names = "{.col}"))
+
+df <- df %>%
+  left_join(participants, by = "subject_id") ## df is now completed df 
+
+```
+
+Quick overview of what data looks like
+
+```{r}
+#| echo: false
+library(ggplot2)
+
+#visualization of demographics 
+
+#age
+df$demo_age <- as.numeric(df$demo_age)
+summary(df$demo_age)
+#histogram
+ggplot(data = df, aes(x= demo_age))+
+  geom_histogram(
+    fill = "#39568CFF") +
+  labs(
+    title = "Distribution of Participant Ages",
+    x = "Age", 
+    y = "Count")+
+  theme_minimal()
+
+#gender 
+#plot gender 
+names(which.max(table(df$demo_gender)))
+
+#histogram
+ggplot(data = df, aes(x= demo_gender))+
+  geom_bar(fill = "#39568CFF") +
+  labs(
+    title = "Number of Participant's by Gender", 
+    x = "Gender", 
+    y = "Count")+
+  theme_minimal()
+
+#total time 
+#plot time taken
+summary(df$total_time/60000) #time taken in minutes ms:min --> 60000:1 
+#plot
+ggplot(data = df, aes(x= total_time/60000))+
+  geom_density(fill = "#39568CFF") +
+  labs(
+    title = "Amount of Time Taken to Complete Survey",
+    x = "Time to Complete Survey (minutes)", 
+    y = "Count")+
+  theme_minimal()
+
+
+#conditions
+#plot conditions 
+table(df$exp_condition)
+
+ggplot(data = df, aes(x= factor(exp_condition)))+
+  geom_bar(fill = "#39568CFF") +
+  labs(
+    title = "Number of Participants in the Game Conditions",
+    x = "Random Conditon", 
+    y = "Count")+
+  theme_minimal()
+
+
+
+```
+
+### Main Analyses
+
+1.  Condition on Money Burning
+    1.  Do we see higher amounts of money burning in conditions 3 than condition 2
+2.  Emotions on Money Burning
+    1.  Is the level of money burning mediated by envy or anger?
+3.  Conditions on Emotions
+    1.  Do we see more envy in condition 2 than in 1,3,4?
+    2.  Do we see more anger in condition 3 than in 1,2,4?
+    3.  Do we see similar emotions in condition 1 and 4?
+
+Hypothesis 1 will be tested in a single model. We will regress dispositional envy on state envy scores.
+
+Prediction 1: The coefficient for trait envy will be positive and statistically significant. 
+
+Hypothesis 2a will be tested in a single model. We will regress three predictor terms on state envy scores: Final Outcome (0 = equity, 1 = inequity), Responsibility (0 = Absent, 1 = Present), Outcome x Responsibility interaction. 
+
+Prediction 2a: The coefficient for Final Outcome (inequity vs. equity) will be positive and statistically significant. The coefficient for Responsibility and the interaction term are predicted to not significantly differ from zero.
+
+Hypothesis 2b will be tested in a single model using a subset of participants in equity outcome conditions only (C1 & C4). We will create a derived variable EquitySource (0 = equity achieved by Treasurer, 1 = equity achieved by SP2 corrective) 
+
+Prediction 2b: The coefficient for source of equity (Treasurer = 0, SP2 corrective = 1) will not differ significantly from zero.
+
+Self-reported State Anger as the Dependent Variable 
+
+Hypothesis 3 will be tested in a single model. We will regress three predictor terms on state anger scores: Final Outcome (0 = equity, 1 = inequity), Responsibility (0 = Absent, 1 = Present), Outcome x Responsibility interaction. 
+
+Prediction 3: The coefficient for the interaction between outcome and responsibility will be positive and statistically significant, such that participants in the inequity + responsibility condition report higher anger than participants in inequity + no responsibility condition.
+
+Burn Rate as the Dependent Variable 
+
+Hypothesis 4-6 will be tested in a single model. We will regress three predictor terms on money burned: state envy composite, state enger composite, dispositional envy. 
+
+Prediction 4: The coefficient for episodic envy will be positive and statistically significant.
+
+Prediction 5: The coefficient for episodic anger will be positive and statistically significant.
+
+Prediction 6: In a subset of participants with money burned \> \$0, the coefficient for episodic anger will be positive and statistically significant, whereas the coefficient for episodic envy will not differ significantly from zero.
+
+```{r composites}
+
+#trait envy
+df$trait_envy <- (df$dv4_angry_others_succeed +
+                  df$dv4_content_with_self_rev +
+                  df$dv4_happy_friends_succeed_rev +
+                  df$dv4_happy_others_succeed_rev +
+                  df$dv4_pain_friends_succeed +
+                  df$dv4_prefer_stranger_win +
+                  df$dv4_rain_on_parade +
+                  df$dv4_trade_places)/8
+
+#state envy composite
+df$state_envy_composite <- (df$state_envy +
+                            df$state_jealous +
+                            df$state_resentful +
+                            df$state_bitter)/4 
+
+#state anger composite 
+df$state_anger_composte <- (df$state_angry +
+                            df$state_annoyed +
+                            df$state_contempt +
+                            df$state_irritated)/4 
+
+#negative affect composite
+df$state_NA_composite <- (df$state_angry +
+                          df$state_annoyed +
+                          df$state_bitter +
+                          df$state_contempt +
+                          df$state_disappointed +
+                          df$state_envy +
+                          df$state_irritated +
+                          df$state_jealous +
+                          df$state_resentful +
+                          df$state_sad +
+                          df$state_shame +
+                          df$state_upset) /12
+
+
+#negative affect (no envy)
+df$state_NA_composite_NoEnvy <- (df$state_angry +
+                          df$state_annoyed +
+                          
+                          df$state_contempt +
+                          df$state_disappointed +
+                          
+                          df$state_irritated +
+                          
+                          
+                          df$state_sad +
+                          df$state_shame +
+                          df$state_upset) /8
+
+#negative affect composite
+df$state_NA_composite <- (df$state_angry +
+                          df$state_annoyed +
+                          df$state_bitter +
+                          df$state_contempt +
+                          df$state_disappointed +
+                          df$state_envy +
+                          df$state_irritated +
+                          df$state_jealous +
+                          df$state_resentful +
+                          df$state_sad +
+                          df$state_shame +
+                          df$state_upset) /12
+
+
+
+#positive affect composite 
+df$state_PA_composite <- (df$state_happy +
+                          df$state_joy +
+                          df$state_surprised +
+                          df$state_thankful +
+                          df$state_compassionate +
+                          df$state_grateful)/6
+
+
+```
+
+#### Data Visualization
+
+What might we want to visualize?
+
+1.  correlation matrix
+2.  bar plot or box plot for the conditions on envy, anger, and
+
+```{r}
+
+```
+
+```{r}
+# Conditon on State Envy
+
+summary(lm.beta(lm(state_envy_composite ~ condition, data = df)))
+
+# planned contrasts #
+
+##inequity vs equity ##
+
+##source of equity ##
+
+##responsibility and inequity vs rest ##
+
+# Conditon on State Anger 
+# planned contrasts #
+
+##inequity vs equity ##
+
+##source of equity ##
+
+##responsibility and inequity vs rest ##
+
+# Individual Difference on Money Burning 
+
+#overall regression 
+
+## 2-factor test 
+# logistic regression --> predict money burning at all
+# regress on burners 
+
+# Condition on Money Burning 
+# planned contrasts #
+
+##inequity vs equity ##
+
+##source of equity ##
+
+##responsibility and inequity vs rest ##
+
+```
